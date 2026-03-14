@@ -1,0 +1,77 @@
+import math
+import numpy as np
+import csv
+import os
+
+def calculate_vps13c_to_csv(input_file="rods.txt", output_prefix="VPS13C_长度计算结果", voxel_size=1.0):
+    """
+    读取 rods.txt，计算每对坐标间的长度，并导出至包含“长度”字样的 CSV。
+    :param voxel_size: 体素大小 (如果坐标是像素，请修改此值，例如 1.25)
+    """
+    output_file = f"{output_prefix}.csv"
+    results = []
+    
+    # 检查输入文件是否存在
+    if not os.path.exists(input_file):
+        print(f"❌ 错误：在当前目录下找不到 '{input_file}' 文件。")
+        return
+
+    try:
+        # 加载坐标数据
+        coords = np.loadtxt(input_file)
+        
+        # 确保是二维数组 (处理只有两个点的情况)
+        if coords.ndim == 1:
+            coords = np.array([coords])
+
+        # 检查是否成对
+        if len(coords) % 2 != 0:
+            print("⚠️ 警告：检测到奇数行坐标，最后一行将被忽略。")
+            coords = coords[:-1]
+            
+        total_length = 0
+        count = 0
+        
+        for i in range(0, len(coords), 2):
+            p1 = coords[i]
+            p2 = coords[i+1]
+            
+            # 计算三维欧氏距离
+            # 公式: sqrt((x2-x1)^2 + (y2-y1)^2 + (z2-z1)^2)
+            dist = math.sqrt(sum((px - py) ** 2 for px, py in zip(p1, p2)))
+            actual_length = dist * voxel_size
+            
+            rod_id = (i // 2) + 1
+            results.append([rod_id, round(actual_length, 3)])
+            
+            total_length += actual_length
+            count += 1
+
+        if count == 0:
+            print("❌ 未能提取到有效的坐标对。")
+            return
+
+        avg_length = total_length / count
+
+        # 写入 CSV 文件
+        with open(output_file, mode='w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f)
+            # 写入表头
+            writer.writerow(['杆编号 (Rod_ID)', '长度 (Length)'])
+            # 写入每一行数据
+            writer.writerows(results)
+            # 写入统计信息
+            writer.writerow([])
+            writer.writerow(['平均长度 (Average)', round(avg_length, 3)])
+            writer.writerow(['总计数量 (Total Count)', count])
+
+        print(f"✅ 处理成功！")
+        print(f"📊 平均长度: {avg_length:.3f}")
+        print(f"💾 结果已保存至: {output_file}")
+
+    except Exception as e:
+        print(f"❌ 运行出错: {e}")
+
+# --- 执行区 ---
+# 如果你的单位是像素，想转纳米，请修改 voxel_size (比如 voxel_size = 1.35)
+calculate_vps13c_to_csv(voxel_size=0.8436)
